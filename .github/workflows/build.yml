@@ -1,0 +1,48 @@
+name: Build Android APK (Godot)
+on:
+  push:
+    branches: [main, master]
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container:
+      image: barichello/godot-ci:4.3
+    steps:
+      - uses: actions/checkout@v4
+      - name: Unpack zip if project.godot missing
+        run: |
+          if [ ! -f project.godot ]; then
+            Z=$(ls *.zip | head -1); unzip -o "$Z"
+            D=$(dirname "$(find . -name project.godot | head -1)")
+            [ "$D" != "." ] && cp -a "$D"/. . ; fi
+          ls
+      - name: Setup templates + Android settings
+        run: |
+          mkdir -p ~/.local/share/godot/export_templates
+          cp -r /root/.local/share/godot/export_templates/* ~/.local/share/godot/export_templates/ || true
+          keytool -genkey -v -keystore /tmp/debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
+          mkdir -p ~/.config/godot
+          for f in editor_settings-4.tres editor_settings-4.3.tres; do
+            printf '[gd_resource type="EditorSettings" format=3]\n\n[resource]\nexport/android/android_sdk_path = "%s"\nexport/android/java_sdk_path = "%s"\nexport/android/debug_keystore = "/tmp/debug.keystore"\nexport/android/debug_keystore_user = "androiddebugkey"\nexport/android/debug_keystore_pass = "android"\n' "${ANDROID_HOME:-/usr/lib/android-sdk}" "$JAVA_HOME" > ~/.config/godot/$f
+          done
+          echo "JAVA_HOME=$JAVA_HOME"; ls /usr/lib/android-sdk || true
+      - name: Import + Export APK
+        run: |
+          mkdir -p build
+          godot --headless --verbose --import || true
+          godot --headless --verbose --export-debug "Android" build/MegaEmpire.apk
+          ls -la build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: MegaEmpire-APK
+          path: build/MegaEmpire.apk
+      - name: Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: latest
+          name: Mega Empire APK (latest)
+          files: build/MegaEmpire.apk
+          
