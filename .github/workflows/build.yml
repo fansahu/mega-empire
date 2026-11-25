@@ -17,7 +17,7 @@ jobs:
           if [ ! -f project.godot ]; then
             Z=$(ls *.zip | head -1); unzip -o "$Z"
             D=$(dirname "$(find . -name project.godot | head -1)")
-            [ "$D" != "." ] && cp -a "$D"/. . ; fi
+            if [ "$D" != "." ]; then cp -a "$D"/. . ; rm -rf "$D"; fi; fi
           ls
       - name: Setup templates + Android settings
         run: |
@@ -25,8 +25,10 @@ jobs:
           cp -r /root/.local/share/godot/export_templates/* ~/.local/share/godot/export_templates/ || true
           keytool -genkey -v -keystore /tmp/debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
           mkdir -p ~/.config/godot
+          JH=$(dirname $(dirname $(readlink -f $(which java))))
+          echo "JH=$JH"
           for f in editor_settings-4.tres editor_settings-4.3.tres; do
-            printf '[gd_resource type="EditorSettings" format=3]\n\n[resource]\nexport/android/android_sdk_path = "%s"\nexport/android/java_sdk_path = "%s"\nexport/android/debug_keystore = "/tmp/debug.keystore"\nexport/android/debug_keystore_user = "androiddebugkey"\nexport/android/debug_keystore_pass = "android"\n' "${ANDROID_HOME:-/usr/lib/android-sdk}" "$JAVA_HOME" > ~/.config/godot/$f
+            printf '[gd_resource type="EditorSettings" format=3]\n\n[resource]\nexport/android/android_sdk_path = "%s"\nexport/android/java_sdk_path = "%s"\nexport/android/debug_keystore = "/tmp/debug.keystore"\nexport/android/debug_keystore_user = "androiddebugkey"\nexport/android/debug_keystore_pass = "android"\n' "${ANDROID_HOME:-/usr/lib/android-sdk}" "$JH" > ~/.config/godot/$f
           done
           echo "JAVA_HOME=$JAVA_HOME"; ls /usr/lib/android-sdk || true
       - name: Import + Export APK
