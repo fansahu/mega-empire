@@ -47,4 +47,7 @@ jobs:
           tag_name: latest
           name: Mega Empire APK (latest)
           files: build/MegaEmpire.apk
-          
+      - name: Fix permissions for cleanup
+        if: always()
+        run: chmod -R a+rwX . || true
+        
